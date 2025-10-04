@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "python-sse-server"
+version = "0.1.0"
+description = "A simple FastAPI server with SSE endpoint"
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.8"
+fastapi = "^0.104.1"
+uvicorn = "^0.24.0"
+sse-starlette = "^2.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
