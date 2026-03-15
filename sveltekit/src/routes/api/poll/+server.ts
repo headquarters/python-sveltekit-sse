@@ -2,48 +2,26 @@ import type { RequestHandler } from './$types';
 
 const PYTHON_SSE_URL = 'http://localhost:8000/poll';
 
-export const GET: RequestHandler = async ({ request }) => {
-	// Create a ReadableStream to forward SSE events
+export const GET: RequestHandler = async () => {
+	const abortController = new AbortController();
+	const encoder = new TextEncoder();
+	const decoder = new TextDecoder();
+
 	const stream = new ReadableStream({
 		async start(controller) {
-			const encoder = new TextEncoder();
-			let abortController: AbortController | null = null;
-
 			try {
-				// Subscribe to the Python SSE endpoint
-				abortController = new AbortController();
 				const response = await fetch(PYTHON_SSE_URL, {
 					signal: abortController.signal,
-					headers: {
-						Accept: 'text/event-stream',
-						'Cache-Control': 'no-cache'
-					}
+					headers: { Accept: 'text/event-stream', 'Cache-Control': 'no-cache' }
 				});
 
-				if (!response.ok) {
-					throw new Error(`Python SSE endpoint returned ${response.status}`);
+				if (!response.ok) throw new Error(`Python SSE endpoint returned ${response.status}`);
+				if (!response.body) throw new Error('No response body');
+
+				for await (const chunk of response.body as unknown as AsyncIterable<Uint8Array>) {
+					controller.enqueue(encoder.encode(decoder.decode(chunk, { stream: true })));
 				}
-
-				const reader = response.body?.getReader();
-				if (!reader) {
-					throw new Error('No response body');
-				}
-
-				const decoder = new TextDecoder();
-
-				// Read from Python SSE and forward to client
-				while (true) {
-					const { done, value } = await reader.read();
-
-					if (done) {
-						console.log('Python SSE stream ended');
-						break;
-					}
-
-					// Decode the chunk and forward it
-					const chunk = decoder.decode(value, { stream: true });
-					controller.enqueue(encoder.encode(chunk));
-				}
+				console.log('Python SSE stream ended');
 			} catch (error) {
 				if (error instanceof Error && error.name === 'AbortError') {
 					console.log('SSE connection aborted by client');
@@ -52,12 +30,12 @@ export const GET: RequestHandler = async ({ request }) => {
 				}
 			} finally {
 				controller.close();
-				abortController?.abort();
 			}
 		},
 
 		cancel() {
 			console.log('Client disconnected from SvelteKit SSE endpoint');
+			abortController.abort();
 		}
 	});
 
