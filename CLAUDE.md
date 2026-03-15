@@ -8,15 +8,24 @@ This is a monorepo demonstrating Server-Sent Events (SSE) integration between a 
 
 **Structure:**
 - `/python` - FastAPI SSE server
+- `/go` - Go SSE server (drop-in replacement for Python, same port/endpoint)
 - `/sveltekit` - SvelteKit frontend client
 
 ## Architecture
 
-**Backend (FastAPI):**
+**Backend (FastAPI — `/python`):**
 - Uses `sse-starlette` library with `EventSourceResponse` for proper SSE implementation
 - SSE messages include: `event` type, `id` (UUID), `retry` timeout, and JSON `data` payload
 - Implements client disconnect detection via `request.is_disconnected()`
 - Main endpoint: `/poll` - streams random numbers with timestamps every second
+
+**Backend (Go — `/go`):**
+- Standard library only (`net/http`, `crypto/rand`) — no external dependencies
+- Uses `http.Flusher` to flush SSE chunks after each write
+- Client disconnect detection via `r.Context().Done()` channel
+- UUID v4 generated with `crypto/rand` (no external package needed)
+- Main endpoint: `/poll` - identical SSE format and behavior to the Python backend
+- Drop-in replacement: same port (8000), same endpoint, same event format
 
 **Frontend (SvelteKit):**
 - Standard SvelteKit 2.x setup with TypeScript
@@ -37,6 +46,17 @@ poetry install
 
 # Update dependencies after changing pyproject.toml
 poetry lock && poetry install
+```
+
+### Go Backend (from `/go` directory)
+```sh
+# Run server
+./run.sh
+# or
+go run .
+
+# Build binary
+go build .
 ```
 
 ### SvelteKit Frontend (from `/sveltekit` directory)
